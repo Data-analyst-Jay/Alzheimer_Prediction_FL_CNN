@@ -1,0 +1,7 @@
+# Federated training settings
+federated:
+  rounds: 10
+  clients: 4
+  client_epochs: 1
+  fedprox_mu: 0.01
+  dirichlet_alpha: 0.5

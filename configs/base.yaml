@@ -1,0 +1,25 @@
+# Paths are resolved inside the Colab runtime. Mount Drive before running.
+data:
+  train_parquet: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/train.parquet
+  test_parquet: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/test.parquet
+  processed_dir: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/processed
+  image_column: image
+  label_column: label
+  num_classes: 4
+  class_names:
+    - NonDemented
+    - VeryMildDemented
+    - MildDemented
+    - ModerateDemented
+  image_size: null # Preserve native dimensions (the supplied data is expected to be 128x128).
+  validation_fraction: 0.15 # Taken from the original training parquet only.
+  warmstart_fraction: 0.20 # Fraction of the post-validation pool; remaining 80% goes to silos.
+  num_silos: 4
+  dirichlet_alpha: 0.5 # Smaller values create stronger class imbalance across silos.
+  seed: 42
+  verify_images: true
+
+loader:
+  batch_size: 32
+  num_workers: 2 # Set to 0 if Colab reports worker or shared-memory errors.
+  pin_memory: true

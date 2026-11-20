@@ -1,0 +1,2 @@
+# Dataset artifacts are managed with DVC, never committed to Git.
+data/**
