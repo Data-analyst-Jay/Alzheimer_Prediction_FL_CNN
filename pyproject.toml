@@ -16,7 +16,20 @@ dependencies = [
   "scikit-learn>=1.3",
   "torch>=2.1",
   "torchvision>=0.16",
+  "flwr[simulation]>=1.28.0,<2.0",
 ]
 
 [tool.setuptools.packages.find]
 include = ["src*"]
+
+[tool.flwr.app]
+publisher = "cv-fl-project"
+fab-include = ["configs/*.yaml"]
+
+[tool.flwr.app.components]
+serverapp = "src.federated.server_app:app"
+clientapp = "src.federated.client_app:app"
+
+[tool.flwr.app.config]
+num-server-rounds = 20
+local-epochs = 1

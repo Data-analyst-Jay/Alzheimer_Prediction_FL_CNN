@@ -1,7 +1,13 @@
 # Federated training settings
 federated:
-  rounds: 10
+  rounds: 20
   clients: 4
   client_epochs: 1
   fedprox_mu: 0.01
-  dirichlet_alpha: 0.5
+  backbone_learning_rate: 0.00001
+  classifier_learning_rate: 0.0001
+  weight_decay: 0.0001
+  classifier_hidden_units: 256
+  dropout: 0.3
+  seed: 42
+  warmstart_checkpoint: warmstart_densenet121_best.pt
