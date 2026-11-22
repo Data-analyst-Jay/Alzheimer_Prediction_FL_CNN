@@ -6,7 +6,8 @@ import copy
 
 import numpy as np
 import torch
-from flwr.app import ArrayRecord, ClientApp, Context, Message, MetricRecord, RecordDict
+from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
+from flwr.clientapp import ClientApp
 from sklearn.metrics import accuracy_score, f1_score
 from torch import nn
 
