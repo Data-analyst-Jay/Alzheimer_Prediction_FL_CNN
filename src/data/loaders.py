@@ -1,76 +1,71 @@
-"""PyTorch dataset and transforms for MRI images stored in Parquet rows."""
+"""Build reusable PyTorch DataLoaders from the saved Parquet partitions."""
 
 from __future__ import annotations
 
-import io
-from collections.abc import Mapping
-from typing import Any
+from pathlib import Path
 
 import pandas as pd
 import torch
-from PIL import Image, UnidentifiedImageError
-from torch.utils.data import Dataset
-from torchvision import transforms
+import yaml
+from torch.utils.data import DataLoader
 
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+from src.data.parquet_dataset import AlzheimerParquetDataset, build_transforms
 
 
-def image_bytes(entry: Any) -> bytes:
-    """Extract image bytes from common Hugging Face/Kaggle Parquet encodings."""
-    if isinstance(entry, Mapping):
-        entry = entry.get("bytes")
-    if isinstance(entry, memoryview):
-        entry = entry.tobytes()
-    if not isinstance(entry, (bytes, bytearray)):
-        raise TypeError(f"Expected encoded image bytes or a mapping containing 'bytes'; got {type(entry).__name__}")
-    return bytes(entry)
+def build_partition_loader(
+    config: dict,
+    partition_name: str,
+    *,
+    training: bool,
+    shuffle: bool | None = None,
+    seed: int | None = None,
+    persistent_workers: bool | None = None,
+) -> DataLoader:
+    """Load one saved ``<partition_name>.parquet`` file as a PyTorch DataLoader."""
+    data_cfg = config.get("data", config)
+    loader_cfg = config.get("loader", {})
+    root = Path(data_cfg["processed_dir"])
+    path = root / f"{partition_name}.parquet"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Partition not found: {path}. Run the ingest and partition stages first."
+        )
+
+    frame = pd.read_parquet(path)
+    dataset = AlzheimerParquetDataset(
+        frame,
+        transform=build_transforms(
+            training=training,
+            image_size=data_cfg.get("image_size"),
+        ),
+        image_column=data_cfg.get("image_column", "image"),
+        label_column=data_cfg.get("label_column", "label"),
+        num_classes=int(data_cfg.get("num_classes", 4)),
+    )
+
+    if shuffle is None:
+        shuffle = training
+    worker_count = int(loader_cfg.get("num_workers", 2))
+    if persistent_workers is None:
+        persistent_workers = worker_count > 0
+
+    generator = None
+    if seed is not None:
+        generator = torch.Generator()
+        generator.manual_seed(seed)
+
+    return DataLoader(
+        dataset,
+        batch_size=int(loader_cfg.get("batch_size", 32)),
+        shuffle=shuffle,
+        num_workers=worker_count,
+        pin_memory=bool(loader_cfg.get("pin_memory", True)),
+        persistent_workers=bool(persistent_workers and worker_count > 0),
+        generator=generator,
+    )
 
 
-def build_transforms(*, training: bool, image_size: int | None = None):
-    ops = []
-    if image_size is not None:
-        ops.append(transforms.Resize((image_size, image_size)))
-    if training:
-        ops.extend((transforms.RandomRotation(degrees=10), transforms.RandomHorizontalFlip(p=0.5)))
-    ops.extend((transforms.ToTensor(), transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)))
-    return transforms.Compose(ops)
-
-
-class AlzheimerParquetDataset(Dataset):
-    """Decode grayscale/RGB MRI image records and return normalized 3-channel tensors."""
-
-    def __init__(
-        self,
-        dataframe: pd.DataFrame,
-        transform=None,
-        *,
-        image_column: str = "image",
-        label_column: str = "label",
-        num_classes: int = 4,
-    ) -> None:
-        missing = {image_column, label_column} - set(dataframe.columns)
-        if missing:
-            raise ValueError(f"DataFrame is missing required columns: {sorted(missing)}")
-        self.df = dataframe.reset_index(drop=True)
-        self.transform = transform
-        self.image_column = image_column
-        self.label_column = label_column
-        self.num_classes = num_classes
-
-    def __len__(self) -> int:
-        return len(self.df)
-
-    def __getitem__(self, idx: int):
-        row = self.df.iloc[idx]
-        try:
-            with Image.open(io.BytesIO(image_bytes(row[self.image_column]))) as decoded:
-                image = decoded.convert("RGB")
-        except (TypeError, UnidentifiedImageError, OSError) as exc:
-            raise RuntimeError(f"Could not decode image at dataset row {idx}") from exc
-        if self.transform is not None:
-            image = self.transform(image)
-        label = int(row[self.label_column])
-        if not 0 <= label < self.num_classes:
-            raise ValueError(f"Label {label} at row {idx} is outside [0, {self.num_classes - 1}]")
-        return image, torch.tensor(label, dtype=torch.long)
+def load_config(path: str | Path = "configs/base.yaml") -> dict:
+    """Read a YAML configuration file."""
+    with open(path, encoding="utf-8") as stream:
+        return yaml.safe_load(stream)

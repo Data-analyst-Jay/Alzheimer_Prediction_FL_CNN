@@ -3,6 +3,7 @@ data:
   train_parquet: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/train.parquet
   test_parquet: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/test.parquet
   processed_dir: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/processed
+  artifacts_dir: /content/drive/MyDrive/AI4Alzheimer Hackathon/MRI/artifacts
   image_column: image
   label_column: label
   num_classes: 4

@@ -1,9 +1,14 @@
-# Centralized upper-bound and warm-start training settings
-training:
-  batch_size: 32
-  epochs: 10
-  learning_rate: 0.001
-  optimizer: adam
-runs:
-  upper_bound: true
-  warm_start: true
+# Stage 2 settings. Data paths and loader settings are read from base.yaml.
+warmstart:
+  seed: 42
+  epochs: 15
+  early_stopping_patience: 5
+  backbone_learning_rate: 0.00001
+  classifier_learning_rate: 0.0001
+  weight_decay: 0.0001
+  classifier_hidden_units: 256
+  dropout: 0.3
+  use_imagenet_weights: true
+  checkpoint_name: warmstart_densenet121_best.pt
+  latest_checkpoint_name: warmstart_densenet121_latest.pt
+  history_name: warmstart_history.csv
